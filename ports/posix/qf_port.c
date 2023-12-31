@@ -35,6 +35,7 @@
 #include "qp_port.h"      // QP port
 #include "qp_pkg.h"       // QP package-scope interface
 #include "qsafe.h"        // QP Functional Safety (FuSa) Subsystem
+#include "safe_std.h"
 #ifdef Q_SPY              // QS software tracing enabled?
     #include "qs_port.h"  // QS port
     #include "qs_pkg.h"   // QS package-scope internal interface
@@ -45,10 +46,7 @@
 #include <limits.h>       // for PTHREAD_STACK_MIN
 #include <sys/mman.h>     // for mlockall()
 #include <sys/ioctl.h>
-#include <time.h>         // for clock_nanosleep()
-#include <string.h>       // for memcpy() and memset()
 #include <stdlib.h>
-#include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
 #include <signal.h>
@@ -169,8 +167,7 @@ int QF_run(void) {
             }
 
             // sleep without drifting till next_time (absolute), see NOTE03
-            (void)clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME,
-                                  &next_tick, NULL);
+            (void)NANOSLEEP_TILL(&next_tick);
             // clock tick callback (must call QTIMEEVT_TICK_X() once)
             QF_onClockTick();
         }

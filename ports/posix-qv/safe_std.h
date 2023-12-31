@@ -32,6 +32,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 // portable "safe" facilities from <stdio.h> and <string.h> ................
 #ifdef _WIN32 // Windows OS?
@@ -100,6 +101,45 @@ if (fopen_s(&fp_, fName_, mode_) != 0) { \
 
 #define LOCALTIME_S(tm_, time_) \
     memcpy(tm_, localtime(time_), sizeof(struct tm))
+
+#ifdef __MACH__ // macOS?
+    static inline void timespec_set(struct timespec *ts, time_t sec, long ns) {
+        ts->tv_sec = sec;
+        ts->tv_nsec = ns;
+    }
+
+    static inline void timespec_diff(const struct timespec *base,
+                                struct timespec *value) {
+        time_t diff_sec = base->tv_sec - value->tv_sec;
+        long diff_ns = base->tv_nsec - value->tv_nsec;
+        if ( diff_sec < 0 || (diff_sec == 0 && diff_ns < 0) ) {
+            timespec_set(value, 0, 0);
+            return;
+        }
+
+        if (diff_ns >= 0)
+            timespec_set(value, diff_sec, diff_ns);
+        else
+            timespec_set(value, 0, diff_ns + 1e9);
+    }
+
+    static inline int clock_nanosleep_monotonic_abstime ( const struct timespec *requested ) {
+        int retval;
+        struct timespec actual;
+        retval = clock_gettime( CLOCK_MONOTONIC, &actual );
+        if (retval == 0) {
+            timespec_diff( requested, &actual );
+            retval = nanosleep( &actual, NULL );
+        }
+        return retval;
+    }
+
+    #define NANOSLEEP_TILL(timespec_ptr) \
+        clock_nanosleep_monotonic_abstime(timespec_ptr)
+#else // other non Windows OS
+    #define NANOSLEEP_TILL(timespec_ptr) \
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, timespec_ptr, NULL)
+#endif // __MACH__
 
 #endif // _WIN32
 
